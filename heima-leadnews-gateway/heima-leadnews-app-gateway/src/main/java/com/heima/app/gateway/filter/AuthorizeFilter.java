@@ -30,7 +30,6 @@ public class AuthorizeFilter implements Ordered, GlobalFilter {
             return chain.filter(exchange);
         }
 
-
         //3.获取token
         String token = request.getHeaders().getFirst("token");
 
@@ -49,10 +48,8 @@ public class AuthorizeFilter implements Ordered, GlobalFilter {
                 response.setStatusCode(HttpStatus.UNAUTHORIZED);
                 return response.setComplete();
             }
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
-            response.setStatusCode(HttpStatus.UNAUTHORIZED);
-            return response.setComplete();
         }
 
         //6.放行
