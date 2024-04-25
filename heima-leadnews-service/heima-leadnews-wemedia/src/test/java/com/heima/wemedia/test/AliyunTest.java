@@ -48,8 +48,8 @@ public class AliyunTest {
         List<byte []> list = new ArrayList<>();
         list.add(bytes);
 
-        Map map = greenImageScan.imageScan(list);
-        System.out.println(map);
+        //Map map = greenImageScan.imageScan(list);
+        //System.out.println(map);
 
     }
 }

@@ -27,6 +27,7 @@ public class GreenTextScan {
     private String accessKeyId;
     private String secret;
     private String textService;
+
     public Map greeTextScan(String content) throws Exception {
 
         Config config = new Config();
@@ -81,58 +82,61 @@ public class GreenTextScan {
 
 
         try {
-
+            // 调用方法获取检测结果。
             TextModerationResponse response = client.textModerationWithOptions(textModerationRequest, runtime);
 
-
-            if (response!= null) {
-//                JSONObject scrResponse = JSON.parseObject(new String(response.getHttpContent(), "UTF-8"));
-                System.out.println(JSON.toJSONString(response, true));
-                if (200 == response.getStatusCode()) {
-                    TextModerationResponseBody result = response.getBody();
-                    Integer code = result.getCode();
-                    resultMap.put("suggestion", "pass");
-                    if (code != null && code == 200) {
-
-                        TextModerationResponseBody.TextModerationResponseBodyData data = result.getData();
-                        String labels = data.getLabels();
-                        if (labels != null) {
-                            String[] labelArray = labels.split(",");
-                            for (String label : labelArray) {
-                                label = label.trim();
-                                if (label.equals("ad") || label.equals("political_content") ||
-                                        label.equals("profanity") || label.equals("contraband") ||
-                                        label.equals("sexual_content") || label.equals("violence") ||
-                                        label.equals("nonsense") || label.equals("negative_content") ||
-                                        label.equals("religion") || label.equals("cyberbullying")) {
-                                    resultMap.put("suggestion", "block");
-                                }
-                            }
-                        }
-                        String reason = data.getReason();
-                        System.out.println("suggestion = [" + labels + "]");
-                        resultMap.put("label", labels);
-                        resultMap.put("reason", reason);
-                        return resultMap;
-                    } else {
-                        return null;
-                    }
-
-                } else {
-                    return null;
+            // 自动路由。
+            if (response != null) {
+                // 服务端错误，区域切换到cn-beijing。
+                if (500 == response.getStatusCode() || (response.getBody() != null && 500 == (response.getBody().getCode()))) {
+                    // 接入区域和地址请根据实际情况修改。
+                    config.setRegionId("cn-beijing");
+                    config.setEndpoint("green-cip.cn-beijing.aliyuncs.com");
+                    client = new Client(config);
+                    response = client.textModerationWithOptions(textModerationRequest, runtime);
                 }
-            } else {
-                return null;
+
             }
-        } catch (ServerException e) {
-            e.printStackTrace();
-        } catch (ClientException e) {
-            e.printStackTrace();
+            // 打印检测结果。
+            if (response != null) {
+                if (response.getStatusCode() == 200) {
+                    TextModerationResponseBody result = response.getBody();
+                    System.out.println(JSON.toJSONString(result));
+                    Integer code = result.getCode();
+                    if (code != null && code == 200) {
+                        TextModerationResponseBody.TextModerationResponseBodyData data = result.getData();
+                        if (data.getLabels().isEmpty() && data.getReason().isEmpty()) {
+                            resultMap.put("suggestion", "pass");
+                            return resultMap;
+                        }
+                        System.out.println("labels = [" + data.getLabels() + "]");
+                        System.out.println("reason = [" + data.getReason() + "]");
+                        String labels = data.getLabels();
+                        String reason = data.getReason();
+                        resultMap.put("labels", labels);
+                        resultMap.put("reason", reason);
+                        resultMap.put("suggestion", "block");
+                        return resultMap;
+
+                    } else {
+                        System.out.println("text moderation not success. code:" + code);
+                        String information = "text moderation not success :" + code;
+                        resultMap.put("information", "review");
+                        return resultMap;
+                    }
+                } else {
+                    System.out.println("response not success. status:" + response.getStatusCode());
+                    String information = "response not success" + response.getStatusCode();
+                    resultMap.put("information", "review");
+                    return resultMap;
+                }
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
 
     }
-
 }
+
+

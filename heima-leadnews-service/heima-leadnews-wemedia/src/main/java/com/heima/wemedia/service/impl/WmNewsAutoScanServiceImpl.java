@@ -22,6 +22,10 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -147,31 +151,54 @@ public class WmNewsAutoScanServiceImpl implements WmNewsAutoScanService {
 
         for (String image : images) {
             byte[] bytes = fileStorageService.downLoadFile(image);
+
+            String fileExtension = image.substring(image.lastIndexOf("."));
+            System.out.println(fileExtension);
+            Path tempFilePath = null;
+            try {
+                tempFilePath = Files.createTempFile("temp", fileExtension);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            // 将字节流写入本地临时文件
+            try {
+                Files.write(tempFilePath, bytes, StandardOpenOption.CREATE);
+                System.out.println("文件下载成功，保存在：" + tempFilePath.toString());
+            } catch (IOException e) {
+                e.printStackTrace();
+                System.out.println("文件下载失败");
+            }
+            String tempFileUrl = tempFilePath.toString();
+            try {
+                Map map = greenImageScan.imageScan(tempFileUrl);
+                if(map != null){
+                    //审核失败
+                    if(map.get("suggestion").equals("block")){
+                        flag = false;
+                        updateWmNews(wmNews, (short) 2, "当前文章中存在违规内容");
+                    }
+
+                    //不确定信息  需要人工审核
+                    if(map.get("suggestion").equals("review")){
+                        flag = false;
+                        updateWmNews(wmNews, (short) 3, "当前文章中存在不确定内容");
+                    }
+                }
+
+            } catch (Exception e) {
+                flag = false;
+                e.printStackTrace();
+            }
+
+
+
+
             imageList.add(bytes);
         }
 
 
         //审核图片
-        try {
-            Map map = greenImageScan.imageScan(imageList);
-            if(map != null){
-                //审核失败
-                if(map.get("suggestion").equals("block")){
-                    flag = false;
-                    updateWmNews(wmNews, (short) 2, "当前文章中存在违规内容");
-                }
 
-                //不确定信息  需要人工审核
-                if(map.get("suggestion").equals("review")){
-                    flag = false;
-                    updateWmNews(wmNews, (short) 3, "当前文章中存在不确定内容");
-                }
-            }
-
-        } catch (Exception e) {
-            flag = false;
-            e.printStackTrace();
-        }
         return flag;
     }
 
