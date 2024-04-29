@@ -16,6 +16,7 @@
         <module name="heima-leadnews-feign-api" />
         <module name="heima-leadnews-user" />
         <module name="heima-leadnews-article" />
+        <module name="kafka-demo" />
         <module name="heima-leadnews-schedule" />
         <module name="heima-leadnews-utils" />
         <module name="heima-leadnews-app-gateway" />
@@ -23,9 +24,7 @@
         <module name="heima-leadnews-model" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel target="1.8">
-      <module name="kafka-demo" target="1.8" />
-    </bytecodeTargetLevel>
+    <bytecodeTargetLevel target="1.8" />
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
@@ -46,7 +45,7 @@
       <module name="heima-leadnews-utils" options="-parameters" />
       <module name="heima-leadnews-wemedia" options="-parameters" />
       <module name="heima-leadnews-wemedia-gateway" options="-parameters" />
-      <module name="kafka-demo" options="" />
+      <module name="kafka-demo" options="-parameters" />
       <module name="minio-demo" options="-parameters" />
       <module name="tess4j-demo" options="-parameters" />
     </option>
