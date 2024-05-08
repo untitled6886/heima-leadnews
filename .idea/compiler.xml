@@ -39,12 +39,21 @@
         <module name="heima-leadnews-admin (1)" />
         <module name="heima-leadnews-app-gateway" />
         <module name="mongo-demo" />
-        <module name="heima-leadnews-seata" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="1.8">
+      <module name="es-init (1)" target="1.8" />
+      <module name="heima-file-starter (1)" target="1.8" />
+      <module name="heima-leadnews-admin (1)" target="1.8" />
+      <module name="heima-leadnews-admin-gateway (1)" target="1.8" />
       <module name="heima-leadnews-article (1)" target="1.5" />
+      <module name="heima-leadnews-behavior (1)" target="1.8" />
+      <module name="heima-leadnews-search (1)" target="1.8" />
+      <module name="heima-leadnews-seata" target="1.8" />
       <module name="heima-leadnews-seata (1)" target="1.8" />
+      <module name="mongo-demo (1)" target="1.8" />
+      <module name="task-demo (1)" target="1.8" />
+      <module name="xxljob-demo (1)" target="1.8" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">

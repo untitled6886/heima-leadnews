@@ -1,25 +1,27 @@
 package com.heima.common.aliyun;
 
 import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
-import com.aliyuncs.DefaultAcsClient;
-import com.aliyuncs.IAcsClient;
-import com.aliyuncs.green.model.v20180509.ImageSyncScanRequest;
-import com.aliyuncs.http.FormatType;
-import com.aliyuncs.http.HttpResponse;
-import com.aliyuncs.http.MethodType;
-import com.aliyuncs.http.ProtocolType;
-import com.aliyuncs.profile.DefaultProfile;
-import com.aliyuncs.profile.IClientProfile;
-import com.heima.common.aliyun.util.ClientUploader;
+import com.aliyun.green20220302.Client;
+import com.aliyun.green20220302.models.ImageModerationRequest;
+import com.aliyun.green20220302.models.ImageModerationResponse;
+import com.aliyun.green20220302.models.ImageModerationResponseBody;
+import com.aliyun.green20220302.models.DescribeUploadTokenResponse;
+import com.aliyun.green20220302.models.DescribeUploadTokenResponseBody;
+import com.aliyun.oss.OSS;
+import com.aliyun.oss.OSSClientBuilder;
+import com.aliyun.oss.model.PutObjectRequest;
+import com.aliyun.teaopenapi.models.Config;
+import com.aliyun.teautil.models.RuntimeOptions;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import java.io.File;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.PropertySource;
-import org.springframework.stereotype.Component;
-
-import java.util.*;
 
 @Getter
 @Setter
@@ -29,118 +31,182 @@ public class GreenImageScan {
 
     private String accessKeyId;
     private String secret;
-    private String scenes;
 
-    public Map imageScan(List<byte[]> imageList) throws Exception {
-        IClientProfile profile = DefaultProfile
-            .getProfile("cn-shanghai", accessKeyId, secret);
-        DefaultProfile
-            .addEndpoint("cn-shanghai", "cn-shanghai", "Green", "green.cn-shanghai.aliyuncs.com");
-        IAcsClient client = new DefaultAcsClient(profile);
-        ImageSyncScanRequest imageSyncScanRequest = new ImageSyncScanRequest();
-        // 指定api返回格式
-        imageSyncScanRequest.setAcceptFormat(FormatType.JSON);
-        // 指定请求方法
-        imageSyncScanRequest.setMethod(MethodType.POST);
-        imageSyncScanRequest.setEncoding("utf-8");
-        //支持http和https
-        imageSyncScanRequest.setProtocol(ProtocolType.HTTP);
-        JSONObject httpBody = new JSONObject();
-        /**
-         * 设置要检测的场景, 计费是按照该处传递的场景进行
-         * 一次请求中可以同时检测多张图片，每张图片可以同时检测多个风险场景，计费按照场景计算
-         * 例如：检测2张图片，场景传递porn、terrorism，计费会按照2张图片鉴黄，2张图片暴恐检测计算
-         * porn: porn表示色情场景检测
-         */
+    //服务是否部署在vpc上
+    public static boolean isVPC = false;
 
-        httpBody.put("scenes", Arrays.asList(scenes.split(",")));
+    //文件上传token endpoint->token
+    public static Map<String, DescribeUploadTokenResponseBody.DescribeUploadTokenResponseBodyData> tokenMap = new HashMap<>();
 
+    //上传文件请求客户端
+    public static OSS ossClient = null;
+
+    //内容增强扫描本地
+
+    public Map imageScan(String url) throws Exception{
         /**
-         * 如果您要检测的文件存于本地服务器上，可以通过下述代码片生成url
-         * 再将返回的url作为图片地址传递到服务端进行检测
+         * 阿里云账号AccessKey拥有所有API的访问权限，建议您使用RAM用户进行API访问或日常运维。
+         * 常见获取环境变量方式：
+         * 方式一：
+         *     获取RAM用户AccessKey ID：System.getenv("ALIBABA_CLOUD_ACCESS_KEY_ID");
+         *     获取RAM用户AccessKey Secret：System.getenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET");
+         * 方式二：
+         *     获取RAM用户AccessKey ID：System.getProperty("ALIBABA_CLOUD_ACCESS_KEY_ID");
+         *     获取RAM用户AccessKey Secret：System.getProperty("ALIBABA_CLOUD_ACCESS_KEY_SECRET");
          */
-        /**
-         * 设置待检测图片， 一张图片一个task
-         * 多张图片同时检测时，处理的时间由最后一个处理完的图片决定
-         * 通常情况下批量检测的平均rt比单张检测的要长, 一次批量提交的图片数越多，rt被拉长的概率越高
-         * 这里以单张图片检测作为示例, 如果是批量图片检测，请自行构建多个task
-         */
-        ClientUploader clientUploader = ClientUploader.getImageClientUploader(profile, false);
-        String url = null;
-        List<JSONObject> urlList = new ArrayList<JSONObject>();
-        for (byte[] bytes : imageList) {
-            url = clientUploader.uploadBytes(bytes);
-            JSONObject task = new JSONObject();
-            task.put("dataId", UUID.randomUUID().toString());
-            //设置图片链接为上传后的url
-            task.put("url", url);
-            task.put("time", new Date());
-            urlList.add(task);
-        }
-        httpBody.put("tasks", urlList);
-        imageSyncScanRequest.setHttpContent(org.apache.commons.codec.binary.StringUtils.getBytesUtf8(httpBody.toJSONString()),
-            "UTF-8", FormatType.JSON);
-        /**
-         * 请设置超时时间, 服务端全链路处理超时时间为10秒，请做相应设置
-         * 如果您设置的ReadTimeout小于服务端处理的时间，程序中会获得一个read timeout异常
-         */
-        imageSyncScanRequest.setConnectTimeout(3000);
-        imageSyncScanRequest.setReadTimeout(10000);
-        HttpResponse httpResponse = null;
+        // 接入区域和地址请根据实际情况修改。
+        ImageModerationResponse response = invokeLocalFunction(url,accessKeyId, secret, "green-cip.cn-shanghai.aliyuncs.com");
+        Map<String,Object> resultMap=new HashMap<>();
         try {
-            httpResponse = client.doAction(imageSyncScanRequest);
+            // 自动路由。
+            if (response != null) {
+                //区域切换到cn-beijing。
+                if (500 == response.getStatusCode() || (response.getBody() != null && 500 == (response.getBody().getCode()))) {
+                    // 接入区域和地址请根据实际情况修改。
+                    response = invokeLocalFunction(url,accessKeyId, secret, "green-cip.cn-beijing.aliyuncs.com");
+                }
+            }
+            // 打印检测结果。
+            if (response != null) {
+                if (response.getStatusCode() == 200) {
+                    ImageModerationResponseBody body = response.getBody();
+                    System.out.println("requestId=" + body.getRequestId());
+                    System.out.println("code=" + body.getCode());
+                    System.out.println("msg=" + body.getMsg());
+                    resultMap.put("code",body.getCode());
+                    resultMap.put("msg",body.getMsg());
+                    resultMap.put("requestId",body.getRequestId());
+
+                    if (body.getCode() == 200) {
+                        ImageModerationResponseBody.ImageModerationResponseBodyData data = body.getData();
+                        System.out.println("dataId=" + data.getDataId());
+                        List<ImageModerationResponseBody.ImageModerationResponseBodyDataResult> results = data.getResult();
+                        for (ImageModerationResponseBody.ImageModerationResponseBodyDataResult result : results) {
+                            System.out.println("label=" + result.getLabel());
+                            System.out.println("confidence=" + result.getConfidence());
+                        }
+                        resultMap.put("suggestion","pass");
+                        return resultMap;
+                    } else {
+                        System.out.println("image moderation not success. code:" + body.getCode());
+                        resultMap.put("information","image moderation not success. code:" + body.getCode());
+                        resultMap.put("suggestion","review");
+                        return resultMap;
+                    }
+                } else {
+                    System.out.println("response not success. status:" + response.getStatusCode());
+                    resultMap.put("information","response not success. status:" + response.getStatusCode());
+                    resultMap.put("suggestion","block");
+                    return resultMap;
+                }
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-        Map<String, String> resultMap = new HashMap<>();
-
-        //服务端接收到请求，并完成处理返回的结果
-        if (httpResponse != null && httpResponse.isSuccess()) {
-            JSONObject scrResponse = JSON.parseObject(org.apache.commons.codec.binary.StringUtils.newStringUtf8(httpResponse.getHttpContent()));
-            System.out.println(JSON.toJSONString(scrResponse, true));
-            int requestCode = scrResponse.getIntValue("code");
-            //每一张图片的检测结果
-            JSONArray taskResults = scrResponse.getJSONArray("data");
-            if (200 == requestCode) {
-                for (Object taskResult : taskResults) {
-                    //单张图片的处理结果
-                    int taskCode = ((JSONObject) taskResult).getIntValue("code");
-                    //图片要检测的场景的处理结果, 如果是多个场景，则会有每个场景的结果
-                    JSONArray sceneResults = ((JSONObject) taskResult).getJSONArray("results");
-                    if (200 == taskCode) {
-                        for (Object sceneResult : sceneResults) {
-                            String scene = ((JSONObject) sceneResult).getString("scene");
-                            String label = ((JSONObject) sceneResult).getString("label");
-                            String suggestion = ((JSONObject) sceneResult).getString("suggestion");
-                            //根据scene和suggetion做相关处理
-                            //do something
-                            System.out.println("scene = [" + scene + "]");
-                            System.out.println("suggestion = [" + suggestion + "]");
-                            System.out.println("suggestion = [" + label + "]");
-                            if (!suggestion.equals("pass")) {
-                                resultMap.put("suggestion", suggestion);
-                                resultMap.put("label", label);
-                                return resultMap;
-                            }
-                        }
-
-                    } else {
-                        //单张图片处理失败, 原因视具体的情况详细分析
-                        System.out.println("task process fail. task response:" + JSON.toJSONString(taskResult));
-                        return null;
-                    }
-                }
-                resultMap.put("suggestion","pass");
-                return resultMap;
-            } else {
-                /**
-                 * 表明请求整体处理失败，原因视具体的情况详细分析
-                 */
-                System.out.println("the whole image scan request failed. response:" + JSON.toJSONString(scrResponse));
-                return null;
-            }
-        }
         return null;
     }
+
+
+    /**
+     * 创建请求客户端
+     *
+     * @param accessKeyId
+     * @param accessKeySecret
+     * @param endpoint
+     * @return
+     * @throws Exception
+     */
+    public static Client createClient(String accessKeyId, String accessKeySecret, String endpoint) throws Exception {
+        Config config = new Config();
+        config.setAccessKeyId(accessKeyId);
+        config.setAccessKeySecret(accessKeySecret);
+        // 设置http代理。
+        //config.setHttpProxy("http://10.10.xx.xx:xxxx");
+        // 设置https代理。
+        //config.setHttpsProxy("https://10.10.xx.xx:xxxx");
+        // 接入区域和地址请根据实际情况修改
+        config.setEndpoint(endpoint);
+        return new Client(config);
+    }
+
+    /**
+     * 创建上传文件请求客户端
+     *
+     * @param tokenData
+     * @param isVPC
+     */
+    public static void getOssClient(DescribeUploadTokenResponseBody.DescribeUploadTokenResponseBodyData tokenData, boolean isVPC) {
+        //注意，此处实例化的client请尽可能重复使用，避免重复建立连接，提升检测性能。
+        if (isVPC) {
+            ossClient = new OSSClientBuilder().build(tokenData.ossInternalEndPoint, tokenData.getAccessKeyId(), tokenData.getAccessKeySecret(), tokenData.getSecurityToken());
+        } else {
+            ossClient = new OSSClientBuilder().build(tokenData.ossInternetEndPoint, tokenData.getAccessKeyId(), tokenData.getAccessKeySecret(), tokenData.getSecurityToken());
+        }
+    }
+
+
+    /**
+     * 上传文件
+     *
+     * @param filePath
+     * @param tokenData
+     * @return
+     * @throws Exception
+     */
+    public static String uploadFile(String filePath, DescribeUploadTokenResponseBody.DescribeUploadTokenResponseBodyData tokenData) throws Exception {
+        //将文件路径 filePath 根据点号 . 进行分割
+        String[] split = filePath.split("\\.");
+        String objectName;
+        if (split.length > 1) {
+            objectName = tokenData.getFileNamePrefix() + UUID.randomUUID() + "." + split[split.length - 1];
+        } else {
+            objectName = tokenData.getFileNamePrefix() + UUID.randomUUID();
+        }
+        PutObjectRequest putObjectRequest = new PutObjectRequest(tokenData.getBucketName(), objectName, new File(filePath));
+        ossClient.putObject(putObjectRequest);
+        return objectName;
+    }
+
+
+    public static ImageModerationResponse invokeLocalFunction(String url,String accessKeyId, String accessKeySecret, String endpoint) throws Exception {
+        //注意，此处实例化的client请尽可能重复使用，避免重复建立连接，提升检测性能。
+        Client client = createClient(accessKeyId, accessKeySecret, endpoint);
+        RuntimeOptions runtime = new RuntimeOptions();
+
+        //本地文件的完整路径，例如D:\localPath\exampleFile.png。
+        String filePath = url;
+        String bucketName = null;
+        DescribeUploadTokenResponseBody.DescribeUploadTokenResponseBodyData uploadToken = tokenMap.get(endpoint);
+        //获取文件上传token
+        if (uploadToken == null || uploadToken.expiration <= System.currentTimeMillis() / 1000) {
+            DescribeUploadTokenResponse tokenResponse = client.describeUploadToken();
+            uploadToken = tokenResponse.getBody().getData();
+            bucketName = uploadToken.getBucketName();
+        }
+        //上传文件请求客户端
+        getOssClient(uploadToken, isVPC);
+
+        //上传文件
+        String objectName = uploadFile(filePath, uploadToken);
+        // 检测参数构造。
+        Map<String, String> serviceParameters = new HashMap<>();
+        //文件上传信息
+        serviceParameters.put("ossBucketName", bucketName);
+        serviceParameters.put("ossObjectName", objectName);
+        serviceParameters.put("dataId", UUID.randomUUID().toString());
+
+        ImageModerationRequest request = new ImageModerationRequest();
+        // 图片检测service：内容安全控制台图片增强版规则配置的serviceCode，示例：baselineCheck
+        request.setService("baselineCheck");
+        request.setServiceParameters(JSON.toJSONString(serviceParameters));
+
+        ImageModerationResponse response = null;
+        try {
+            response = client.imageModerationWithOptions(request, runtime);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return response;
+    }
 }
+
