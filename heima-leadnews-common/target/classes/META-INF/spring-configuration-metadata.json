@@ -9,6 +9,11 @@
       "name": "aliyun",
       "type": "com.heima.common.aliyun.GreenTextScan",
       "sourceType": "com.heima.common.aliyun.GreenTextScan"
+    },
+    {
+      "name": "tess4j",
+      "type": "com.heima.common.tess4j.Tess4jClient",
+      "sourceType": "com.heima.common.tess4j.Tess4jClient"
     }
   ],
   "properties": [
@@ -23,14 +28,8 @@
       "sourceType": "com.heima.common.aliyun.GreenTextScan"
     },
     {
-      "name": "aliyun.is-v-p-c",
-      "type": "java.lang.Boolean",
-      "sourceType": "com.heima.common.aliyun.GreenImageScan",
-      "defaultValue": false
-    },
-    {
-      "name": "aliyun.oss-client",
-      "type": "com.aliyun.oss.OSS",
+      "name": "aliyun.scenes",
+      "type": "java.lang.String",
       "sourceType": "com.heima.common.aliyun.GreenImageScan"
     },
     {
@@ -44,14 +43,14 @@
       "sourceType": "com.heima.common.aliyun.GreenTextScan"
     },
     {
-      "name": "aliyun.text-service",
+      "name": "tess4j.data-path",
       "type": "java.lang.String",
-      "sourceType": "com.heima.common.aliyun.GreenTextScan"
+      "sourceType": "com.heima.common.tess4j.Tess4jClient"
     },
     {
-      "name": "aliyun.token-map",
-      "type": "java.util.Map<java.lang.String,com.aliyun.green20220302.models.DescribeUploadTokenResponseBody$DescribeUploadTokenResponseBodyData>",
-      "sourceType": "com.heima.common.aliyun.GreenImageScan"
+      "name": "tess4j.language",
+      "type": "java.lang.String",
+      "sourceType": "com.heima.common.tess4j.Tess4jClient"
     }
   ],
   "hints": []

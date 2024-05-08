@@ -19,6 +19,7 @@ import com.heima.wemedia.mapper.WmNewsMapper;
 import com.heima.wemedia.mapper.WmSensitiveMapper;
 import com.heima.wemedia.mapper.WmUserMapper;
 import com.heima.wemedia.service.WmNewsAutoScanService;
+import io.seata.spring.annotation.GlobalTransactional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
@@ -30,10 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -48,14 +45,13 @@ public class WmNewsAutoScanServiceImpl implements WmNewsAutoScanService {
 
     /**
      * 自媒体文章审核
+     *
      * @param id 自媒体文章id
      */
     @Override
-    @Async  //标明当前方法是一个异步方法
+    @Async
+    @GlobalTransactional
     public void autoScanWmNews(Integer id) {
-
-//        int a = 1/0;
-
         //1.查询自媒体文章
         WmNews wmNews = wmNewsMapper.selectById(id);
         if(wmNews == null){
@@ -66,15 +62,13 @@ public class WmNewsAutoScanServiceImpl implements WmNewsAutoScanService {
             //从内容中提取纯文本内容和图片
             Map<String,Object> textAndImages = handleTextAndImages(wmNews);
 
+            //2.审核文本内容  阿里云接口
+            boolean isTextScan = handleTextScan((String) textAndImages.get("content"),wmNews);
+            if(!isTextScan)return;
 
             //自管理的敏感词过滤
             boolean isSensitive = handleSensitiveScan((String) textAndImages.get("content"), wmNews);
             if(!isSensitive) return;
-
-
-            //2.审核文本内容  阿里云接口
-            boolean isTextScan = handleTextScan((String) textAndImages.get("content"),wmNews);
-            if(!isTextScan)return;
 
             //3.审核图片  阿里云接口
             boolean isImageScan =  handleImageScan((List<String>) textAndImages.get("images"),wmNews);
@@ -87,6 +81,7 @@ public class WmNewsAutoScanServiceImpl implements WmNewsAutoScanService {
             }
             //回填article_id
             wmNews.setArticleId((Long) responseResult.getData());
+//            int a = 1/0;
             updateWmNews(wmNews,(short) 9,"审核成功");
 
         }
@@ -135,7 +130,8 @@ public class WmNewsAutoScanServiceImpl implements WmNewsAutoScanService {
      * 保存app端相关的文章数据
      * @param wmNews
      */
-    private ResponseResult saveAppArticle(WmNews wmNews) {
+    @Override
+    public ResponseResult saveAppArticle(WmNews wmNews) {
 
         ArticleDto dto = new ArticleDto();
         //属性的拷贝
@@ -194,56 +190,58 @@ public class WmNewsAutoScanServiceImpl implements WmNewsAutoScanService {
         //图片去重
         images = images.stream().distinct().collect(Collectors.toList());
 
-        //List<byte[]> imageList = new ArrayList<>();
+        List<byte[]> imageList = new ArrayList<>();
 
-        for (String image : images) {
-            byte[] bytes = fileStorageService.downLoadFile(image);
+        try {
+            for (String image : images) {
+                byte[] bytes = fileStorageService.downLoadFile(image);
 
-            String fileExtension = image.substring(image.lastIndexOf("."));
-            System.out.println(fileExtension);
-            Path tempFilePath = null;
-            try {
-                tempFilePath = Files.createTempFile("temp", fileExtension);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            // 将字节流写入本地临时文件
-            try {
-                Files.write(tempFilePath, bytes, StandardOpenOption.CREATE);
-                System.out.println("文件下载成功，保存在：" + tempFilePath);
-            } catch (IOException e) {
-                e.printStackTrace();
-                System.out.println("文件下载失败");
-            }
-            String tempFileUrl = tempFilePath.toString();
-            try {
-                Map map = greenImageScan.imageScan(tempFileUrl);
-                if(map != null){
-                    //审核失败
-                    if(map.get("suggestion").equals("block")){
-                        flag = false;
-                        updateWmNews(wmNews, (short) 2, "当前文章中存在违规内容");
-                    }
+                //图片识别文字审核---begin-----
 
-                    //不确定信息  需要人工审核
-                    if(map.get("suggestion").equals("review")){
-                        flag = false;
-                        updateWmNews(wmNews, (short) 3, "当前文章中存在不确定内容");
-                    }
+                //从byte[]转换为butteredImage
+                ByteArrayInputStream in = new ByteArrayInputStream(bytes);
+                BufferedImage imageFile = ImageIO.read(in);
+                //识别图片的文字
+                String result = tess4jClient.doOCR(imageFile);
+
+                //审核是否包含自管理的敏感词
+                boolean isSensitive = handleSensitiveScan(result, wmNews);
+                if(!isSensitive){
+                    return isSensitive;
                 }
 
-            } catch (Exception e) {
-                flag = false;
-                e.printStackTrace();
-            }
+                //图片识别文字审核---end-----
 
-            //imageList.add(bytes);
+
+                imageList.add(bytes);
+
+            }
+        }catch (Exception e){
+            e.printStackTrace();
         }
 
 
-
         //审核图片
+        try {
+            Map map = greenImageScan.imageScan(imageList);
+            if(map != null){
+                //审核失败
+                if(map.get("suggestion").equals("block")){
+                    flag = false;
+                    updateWmNews(wmNews, (short) 2, "当前文章中存在违规内容");
+                }
 
+                //不确定信息  需要人工审核
+                if(map.get("suggestion").equals("review")){
+                    flag = false;
+                    updateWmNews(wmNews, (short) 3, "当前文章中存在不确定内容");
+                }
+            }
+
+        } catch (Exception e) {
+            flag = false;
+            e.printStackTrace();
+        }
         return flag;
     }
 
@@ -260,9 +258,9 @@ public class WmNewsAutoScanServiceImpl implements WmNewsAutoScanService {
 
         boolean flag = true;
 
-        if((wmNews.getTitle()+"-"+content).length() == 0){
+       /* if((wmNews.getTitle()+"-"+content).length() == 0){
             return flag;
-        }
+        }*/
 
         try {
             Map map = greenTextScan.greeTextScan((wmNews.getTitle()+"-"+content));

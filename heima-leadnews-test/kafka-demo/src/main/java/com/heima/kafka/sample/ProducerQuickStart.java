@@ -27,7 +27,7 @@ public class ProducerQuickStart {
         prop.put(ProducerConfig.RETRIES_CONFIG,10);
 
         //数据压缩
-        prop.put(ProducerConfig.COMPRESSION_TYPE_CONFIG,"snappy");
+        prop.put(ProducerConfig.COMPRESSION_TYPE_CONFIG,"lz4");
 
         //2.创建kafka生产者对象
         KafkaProducer<String,String> producer = new KafkaProducer<String,String>(prop);
@@ -38,13 +38,17 @@ public class ProducerQuickStart {
          * 第二个参数：消息的key
          * 第三个参数：消息的value
          */
-        ProducerRecord<String,String> kvProducerRecord = new ProducerRecord<String,String>("topic-first","hello kafka");
+        for (int i = 0; i < 5; i++) {
+            ProducerRecord<String,String> kvProducerRecord = new ProducerRecord<String,String>("itcast-topic-input","hello kafka");
+            producer.send(kvProducerRecord);
+        }
+
         //同步发送消息
-//        RecordMetadata recordMetadata = producer.send(kvProducerRecord).get();
-//        System.out.println(recordMetadata.offset());
+        /*RecordMetadata recordMetadata = producer.send(kvProducerRecord).get();
+        System.out.println(recordMetadata.offset());*/
 
         //异步消息发送
-        producer.send(kvProducerRecord, new Callback() {
+       /* producer.send(kvProducerRecord, new Callback() {
             @Override
             public void onCompletion(RecordMetadata recordMetadata, Exception e) {
                 if(e != null){
@@ -52,12 +56,10 @@ public class ProducerQuickStart {
                 }
                 System.out.println(recordMetadata.offset());
             }
-        });
+        });*/
 
         //4.关闭消息通道  必须要关闭，否则消息发送不成功
         producer.close();
-
-
 
     }
 

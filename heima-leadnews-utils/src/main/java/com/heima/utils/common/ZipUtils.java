@@ -195,4 +195,12 @@ public class ZipUtils {
         }
         return decompressed;
     }
+
+    public static void main(String[] args) {
+        String content = "dsfsdddddddd";
+        System.out.println(content.getBytes().length);
+        String str = gzip(content);
+        System.out.println(str.getBytes().length);
+
+    }
 }

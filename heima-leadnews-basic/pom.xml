@@ -13,6 +13,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>heima-file-starter</module>
+        <module>heima-leadnews-seata</module>
     </modules>
 
     <properties>

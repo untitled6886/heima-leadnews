@@ -1,7 +1,9 @@
 package com.heima.kafka.sample;
 
-import org.apache.kafka.clients.consumer.*;
-import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -16,7 +18,6 @@ public class ConsumerQuickStart {
 
         //1.kafka的配置信息
         Properties prop = new Properties();
-        // ProducerConfig
         //链接地址
         prop.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "192.168.200.130:9092");
         //key和value的反序列化器
@@ -34,7 +35,7 @@ public class ConsumerQuickStart {
         KafkaConsumer<String, String> consumer = new KafkaConsumer<String, String>(prop);
 
         //3.订阅主题
-        consumer.subscribe(Collections.singletonList("topic-first"));
+        consumer.subscribe(Collections.singletonList("itcast-topic-out"));
 
         //4.拉取消息
 
@@ -45,22 +46,22 @@ public class ConsumerQuickStart {
                 for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
                     System.out.println(consumerRecord.key());
                     System.out.println(consumerRecord.value());
-                    System.out.println(consumerRecord.offset());
-                    System.out.println(consumerRecord.partition());
+                   /* System.out.println(consumerRecord.offset());
+                    System.out.println(consumerRecord.partition());*/
                 }
                 //异步提交偏移量
                 consumer.commitAsync();
             }
-        } catch (Exception e) {
+        }catch (Exception e){
             e.printStackTrace();
-            System.out.println("记录错误的信息：" + e);
-        } finally {
+            System.out.println("记录错误的信息："+e);
+        }finally {
             //同步
             consumer.commitSync();
         }
 
 
-        while (true) {
+        /*while (true){
             ConsumerRecords<String, String> consumerRecords = consumer.poll(Duration.ofMillis(1000));
             for (ConsumerRecord<String, String> consumerRecord : consumerRecords) {
                 System.out.println(consumerRecord.key());
@@ -68,15 +69,15 @@ public class ConsumerQuickStart {
                 System.out.println(consumerRecord.offset());
                 System.out.println(consumerRecord.partition());
 
-//                try {
-//                    //同步提交偏移量
-//                    consumer.commitSync();
-//                } catch (CommitFailedException e) {
-//                    System.out.println("记录提交失败的异常：" + e);
-//                }
-//            }
-                //异步的方式提交偏移量
-            /*consumer.commitAsync(new OffsetCommitCallback() {
+               *//* try {
+                    //同步提交偏移量
+                    consumer.commitSync();
+                }catch (CommitFailedException e){
+                    System.out.println("记录提交失败的异常："+e);
+                }*//*
+            }
+            //异步的方式提交偏移量
+            *//*consumer.commitAsync(new OffsetCommitCallback() {
                 @Override
                 public void onComplete(Map<TopicPartition, OffsetAndMetadata> map, Exception e) {
                     if(e != null){
@@ -89,9 +90,6 @@ public class ConsumerQuickStart {
 
         }*/
 
-
-            }
-
-        }
     }
+
 }

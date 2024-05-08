@@ -13,6 +13,7 @@
         <module name="heima-leadnews-wemedia-gateway" />
         <module name="heima-leadnews-wemedia" />
         <module name="tess4j-demo" />
+        <module name="heima-leadnews-article (1)" />
         <module name="heima-leadnews-feign-api" />
         <module name="heima-leadnews-user" />
         <module name="heima-leadnews-article" />
@@ -24,7 +25,16 @@
         <module name="heima-leadnews-model" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel target="1.8" />
+    <bytecodeTargetLevel target="1.8">
+      <module name="es-init" target="1.8" />
+      <module name="heima-leadnews-admin" target="1.8" />
+      <module name="heima-leadnews-admin-gateway" target="1.8" />
+      <module name="heima-leadnews-search" target="1.8" />
+      <module name="heima-leadnews-seata" target="1.8" />
+      <module name="mongo-demo" target="1.8" />
+      <module name="task-demo" target="1.8" />
+      <module name="xxljob-demo" target="1.8" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
@@ -32,7 +42,7 @@
       <module name="heima-file-starter" options="-parameters" />
       <module name="heima-leadnews" options="-parameters" />
       <module name="heima-leadnews-app-gateway" options="-parameters" />
-      <module name="heima-leadnews-article" options="-parameters" />
+      <module name="heima-leadnews-article" options="" />
       <module name="heima-leadnews-basic" options="-parameters" />
       <module name="heima-leadnews-common" options="-parameters" />
       <module name="heima-leadnews-feign-api" options="-parameters" />
