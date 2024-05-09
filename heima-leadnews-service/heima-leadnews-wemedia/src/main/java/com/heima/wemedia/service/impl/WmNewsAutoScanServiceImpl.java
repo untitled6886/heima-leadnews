@@ -55,8 +55,6 @@ public class WmNewsAutoScanServiceImpl implements WmNewsAutoScanService {
     @Async  //标明当前方法是一个异步方法
     public void autoScanWmNews(Integer id) {
 
-//        int a = 1/0;
-
         //1.查询自媒体文章
         WmNews wmNews = wmNewsMapper.selectById(id);
         if(wmNews == null){

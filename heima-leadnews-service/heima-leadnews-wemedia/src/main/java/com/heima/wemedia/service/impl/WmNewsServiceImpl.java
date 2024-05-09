@@ -157,6 +157,8 @@ public class WmNewsServiceImpl  extends ServiceImpl<WmNewsMapper, WmNews> implem
 
         wmNewsTaskService.addNewsToTask(wmNews.getId(),wmNews.getPublishTime());
 
+        //wmNewsTaskService.scanNewsByTask();
+
         return ResponseResult.okResult(AppHttpCodeEnum.SUCCESS);
 
     }

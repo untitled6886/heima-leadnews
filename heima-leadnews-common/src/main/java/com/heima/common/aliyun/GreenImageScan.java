@@ -84,6 +84,11 @@ public class GreenImageScan {
                         for (ImageModerationResponseBody.ImageModerationResponseBodyDataResult result : results) {
                             System.out.println("label=" + result.getLabel());
                             System.out.println("confidence=" + result.getConfidence());
+                            if(result.getLabel()!=null&&result.getConfidence()>=70){
+                                resultMap.put("reason",result.getLabel());
+                                resultMap.put("suggestion","block");
+                                return resultMap;
+                            }
                         }
                         resultMap.put("suggestion","pass");
                         return resultMap;

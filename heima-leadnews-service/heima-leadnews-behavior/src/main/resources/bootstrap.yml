@@ -1,5 +1,5 @@
 server:
-  port: 51805
+  port: 51806
 spring:
   application:
     name: leadnews-behavior
