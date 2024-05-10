@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <dataSource name="@localhost">
-  <database-model serializer="dbm" dbms="MYSQL" family-id="MYSQL" format-version="4.45">
-    <root id="1">
-      <DefaultCasing>lower/lower</DefaultCasing>
-      <ServerVersion>8.0.32</ServerVersion>
-    </root>
+  <database-model serializer="dbm" dbms="MYSQL" family-id="MYSQL" format-version="4.52">
+    <root id="1"/>
     <schema id="2" parent="1" name="information_schema"/>
     <schema id="3" parent="1" name="jiaowu"/>
     <schema id="4" parent="1" name="leadnews_admin"/>
